@@ -3,7 +3,7 @@ Simple Python decorator implementing basic type constraints
 
 Usage:
 
-``python
+```python
 from typeconstraints import typeconstraints
 
 #If we can't suffice with a type as constraints, helper functions are supported
@@ -22,4 +22,4 @@ def simple_function(foo,bar,baz):
 
 simple_function(42,"hi there",[1,1,2,3,5,8,13,21])
 
-``
+```
