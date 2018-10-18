@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 import inspect
 'Type checking decorator lib for functions and methods'
-# TODO Error info propagation
-# TODO varargs ?
-# TODO pylint,etc
-# TODO tests
 
 def _check_callable(candidate):
     aspec = inspect.getargspec(candidate)
