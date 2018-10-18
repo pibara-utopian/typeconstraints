@@ -3,7 +3,7 @@ from os import path
 
 setup(
     name='typeconstraints',
-    version='0.0.1',
+    version='0.0.3',
     description='Type Constraints Decorator',
     long_description="""A decorator for aserting function argument type constraints.
 
@@ -21,7 +21,6 @@ setup(
         'Programming Language :: Python :: 3',
         'Operating System :: OS Independent',
         'Environment :: Other Environment',
-        'Framework :: Twisted'
     ],
     keywords='assert type constraints',
     packages=find_packages(),
