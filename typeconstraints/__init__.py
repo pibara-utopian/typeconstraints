@@ -26,8 +26,8 @@ def _check_typedict(td):
     for key in td.keys():
         if type(td[key]) != type(bool) and callable(td[key]) == False:
             raise AssertionError("Typelist should contain only types and callables")
-        if callable(td[key]):
-            _check_callable(tl[index])
+        if not isinstance(td[key],type) and  callable(td[key]):
+            _check_callable(td[key])
 
 def _check_arglist(arglist,typelist):
     _check_typelist(typelist)
@@ -77,27 +77,29 @@ class NONNABLE(object):
         return _type_ok(arg,self.nonnable)
 
 class MIXEDARRAY(object):
-    def __init__(self,typelist,maxsize= -1, pad_ok=False, pad_type=type(None)):
+    def __init__(self,typelist,maxsize= -1, pad_type=type(None)):
         _check_typelist(typelist)
-        _check_arglist([minsize,maxsize,pad_ok,pad_type],[int,int,bool,type(bool)])
+        _check_arglist([maxsize,pad_type],[int,type(bool)])
         self.typelist = typelist
         self.maxsize = maxsize
-        self.pad_ok = pad_ok
+        self.pad_ok = maxsize > len(typelist)
         self.pad_type = pad_type
     def __call__(self,arg):
         if not isinstance(arg,list):
             return False
-        if len(arg) < len(typelist):
+        if len(arg) < len(self.typelist):
             return False
-        paddedargs = args[:]
-        if len(arg) > len(typelist):
+        if self.maxsize != -1 and len(arg) > self.maxsize:
+            return False
+        paddedtypelist = self.typelist[:]
+        if len(arg) > len(self.typelist):
             if self.pad_ok:
-                while len(paddedargs) < len(typelist):
-                    paddedargs.append(self.pad_type)
+                while len(paddedtypelist) < len(arg):
+                    paddedtypelist.append(self.pad_type)
             else:
                 return False
-        for index in range(0,len(typelist)):
-            if not _type_ok(arg[index],self.typelist[index]):
+        for index in range(0,len(paddedtypelist)):
+            if not _type_ok(arg[index],paddedtypelist[index]):
                 return False
         return True
 
@@ -115,7 +117,7 @@ class MIXEDDICT(object):
         if type(arg) != type(dict()):
             return False
         akeys =set(arg.keys())
-        extra = self.tdkeys - akeys
+        extra = akeys - self.tdkeys
         if self.ignore_extra == False:
             if len(extra) > 0:
                 return False
@@ -179,7 +181,7 @@ def typeconstraints(typelist,rvtype=None):
                     else:
                         errstr = name + ":Named argument '" + key  + "'  did not pass constraint function checking by " + kwtypelist[key].__name__
                     raise AssertionError(errstr)
-        def factory(of):
+        def type_constraint_assert_factory(of):
             #Create a key value version of the constraint type list using the argument spec of the original function.
             aspec = inspect.getargspec(of)
             args = aspec.args
@@ -189,7 +191,7 @@ def typeconstraints(typelist,rvtype=None):
             for ind in range(0,len(typelist)):
                 kwtypelist[args[ind]] = typelist[ind]
             #Define and return the type constraint checking wrapper function
-            def wf(*args,**kwargs):
+            def type_constraint_assert_wrapper(*args,**kwargs):
                 #Assert the type constraints before calling the wrapped function
                 type_constraint_assert(typelist,kwtypelist,args,kwargs,of.__name__)
                 if rvtype==None:
@@ -202,13 +204,13 @@ def typeconstraints(typelist,rvtype=None):
                         rvlist = [rval]
                     type_constraint_assert(rvtype,{},rvlist,{},of.__name__,True)
                     return rval
-            return wf
-        return factory
+            return type_constraint_assert_wrapper
+        return type_constraint_assert_factory
     else:
-        def fastfactory(of):
-            def wf(*args,**kwargs):
+        def type_constraint_null_factory(of):
+            def type_constraint_null_wraper(*args,**kwargs):
                 return of(*args, **kwargs)
-            return wf
-        return fastfactory
+            return type_constraint_null_wraper
+        return type_constraint_null_factory
 
 
