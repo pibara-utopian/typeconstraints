@@ -3,7 +3,7 @@ from os import path
 
 setup(
     name='typeconstraints',
-    version='0.0.3',
+    version='0.0.4',
     description='Type Constraints Decorator',
     long_description="""A decorator for aserting function argument type constraints.
 
