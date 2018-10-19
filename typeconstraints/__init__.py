@@ -56,7 +56,7 @@ def _check_typelist(typelist):
             _check_callable(typelist[index])
 
 def _check_typedict(typedict):
-    if not isinstance(typedict, type):
+    if not isinstance(typedict, dict):
         raise AssertionError("Typedict should be a dict")
     for key in typedict.keys():
         if isinstance(typedict[key], type) and not callable(typedict[key]):
@@ -84,7 +84,8 @@ def _type_ok(arg, constraint):
     else:
         #Alternatively a constraint may be a constraint checking function
         if callable(constraint):
-            return constraint(arg)
+            rval = constraint(arg)
+            return rval
     return False
 
 #Helper callable for arguments that have more than one valid type
@@ -161,7 +162,7 @@ class MIXEDDICT(object):
             self.optionals = set(optionals)
         self.nonoptionals = self.tdkeys - self.optionals
     def __call__(self, arg):
-        if isinstance(arg, dict):
+        if not isinstance(arg, dict):
             return False
         akeys = set(arg.keys())
         extra = akeys - self.tdkeys
@@ -189,7 +190,7 @@ class ARRAYOF(object):
         self.minsize = minsize
         self.maxsize = maxsize
     def __call__(self, arg):
-        if isinstance(arg, list):
+        if not isinstance(arg, list):
             return False
         if len(arg) < self.minsize:
             return False
