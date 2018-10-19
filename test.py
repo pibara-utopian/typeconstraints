@@ -148,7 +148,64 @@ class typeconstraintsTest(unittest.TestCase):
         def foo24(num,dct):
             return True
         self.assertRaises(AssertionError, foo24, 42, {"bar": "Bushmills", "baz": 3.1415927, "qux": False, "quux": 17})
-
-   #MIXEDDICT({"foo": str,"bar": float},ignore\_extra=True,optionals=["bar"])
+    def testcomplex01(self):
+        @typeconstraints([
+                int,
+                ARRAYOF(
+                    ARRAYOF(
+                        MIXEDDICT(
+                            {
+                                "foo": str,
+                                "bar": ANYOF([int,float]),
+                                "baz": NONNABLE(bool)
+                            }
+                        )
+                    )
+                )
+        ])
+        def foo25(num,dct):
+            return True
+        self.assertTrue(foo25(42,
+            [
+                [
+                    {"foo": "bilbo", "bar": 17, "baz": True},
+                    {"foo": "frodo", "bar": 3.1414926, "baz": False}
+                ],
+                [
+                    {"foo": "peppin", "bar": 11, "baz": None}
+                ]
+            ]
+        ))
+    def testcomplex02(self):
+        @typeconstraints([
+                int,
+                ARRAYOF(
+                    ARRAYOF(
+                        MIXEDDICT(
+                            {
+                                "foo": str,
+                                "bar": ANYOF([int,float]),
+                                "baz": NONNABLE(bool)
+                            }
+                        )
+                    )
+                )
+        ])
+        def foo25(num,dct):
+            return True
+        self.assertRaises(
+                AssertionError,
+                foo25,
+                42,
+                [
+                    [
+                        {"foo": "bilbo", "bar": 17, "baz": True},
+                        {"foo": "frodo", "bar": 3.1414926, "baz": False}
+                    ],
+                    [
+                        {"foo": "peppin", "bar": 11, "baz": "NOTGOOD"}
+                    ]
+                ]
+        )
 if __name__ == "__main__":
     unittest.main()

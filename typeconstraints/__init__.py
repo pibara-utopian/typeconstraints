@@ -71,22 +71,27 @@ def _check_arglist(arglist, typelist):
     #pylint: disable=consider-using-enumerate
     for index in range(0, len(arglist)):
         #pylint: enable=consider-using-enumerate
-        if not _type_ok(arglist[index], typelist[index]):
-            return False
-    return True
+        ok, msg = _type_ok(arglist[index], typelist[index])
+        if not ok:
+            return False, "Argument number " + str(index) + " of type " + str(type(arglist[index])) + \
+                    " match failure against typelist " + str(typelist) + " [" + msg + "]" 
+    return True, ""
 
 def _type_ok(arg, constraint):
     #Simple type constraint, argument should either be the same type or a derived
     # type of the one specified.
     if isinstance(constraint, type):
         if isinstance(arg, constraint):
-            return True
+            return True, ""
     else:
         #Alternatively a constraint may be a constraint checking function
         if callable(constraint):
             rval = constraint(arg)
-            return rval
-    return False
+            msg = ""
+            if not rval and "error_msg" in dir(constraint):
+                msg = constraint.error_msg
+            return rval,msg
+    return False, "Type constraint is neither a type nor a callable."
 
 #Helper callable for arguments that have more than one valid type
 #pylint: disable=too-few-public-methods
@@ -96,10 +101,14 @@ class ANYOF(object):
     def __init__(self, typelist):
         _check_typelist(typelist)
         self.typelist = typelist
+        self.error_msg = ""
     def __call__(self, arg):
         for index in range(0, len(self.typelist)):
-            if _type_ok(arg, self.typelist[index]):
+            ok, msg = _type_ok(arg, self.typelist[index])
+            if ok:
+                self.error_msg = ""
                 return True
+        self.error_msg = "Argument of type " + str(type(arg)) + " not ANYOF types: " + str(self.typelist)
         return False
 
 #Helper callable for single type arguments that may also be specified as None
@@ -110,27 +119,44 @@ class NONNABLE(object):
         if isinstance(ntype, type) and not callable(ntype):
             raise AssertionError("Nonable must be instantiated with a type or callable argument.")
         self.nonnable = ntype
+        self.error_msg = ""
     def __call__(self, arg):
+        self.error_msg = ""
         if isinstance(arg, type(None)):
             return True
-        return _type_ok(arg, self.nonnable)
+        rval, msg = _type_ok(arg, self.nonnable)
+        if not rval:
+            self.error_msg = "Argument of type " + str(type(arg)) + " not NONNABLE type " + \
+                    str(self.nonnable) + " [" + msg + "]"
+        return rval
 
 class MIXEDARRAY(object):
     """Helper type-constraint callable for allowing an list type argument to have
     distinct types per location in the list."""
     def __init__(self, typelist, maxsize=-1, pad_type=type(None)):
         _check_typelist(typelist)
-        _check_arglist([maxsize, pad_type], [int, type])
+        arglist_ok, msg = _check_arglist([maxsize, pad_type], [int, type])
+        if not arglist_ok:
+            raise AssertionError("MIXEDARRAY constructor assert error: [" + msg + "]" )
         self.typelist = typelist
         self.maxsize = maxsize
         self.pad_ok = maxsize > len(typelist)
         self.pad_type = pad_type
+        self.error_msg = ""
     def __call__(self, arg):
+        self.error_msg = ""
         if not isinstance(arg, list):
+            self.error_msg = "Argument of type " + str(type(arg)) + " not MIXEDARRAY " + \
+                    str(self.typelist)
             return False
         if len(arg) < len(self.typelist):
+            self.error_msg = "Argument of type " + str(type(arg)) + " with length " + \
+                    str(len(arg)) + "  not MIXEDARRAY " + str(self.typelist) 
             return False
         if self.maxsize != -1 and len(arg) > self.maxsize:
+            self.error_msg = "Argument of type " + str(type(arg)) + " with length " + \
+                    str(len(arg)) + "  not MIXEDARRAY " + str(self.typelist) + \
+                    " with padding disabled"
             return False
         paddedtypelist = self.typelist[:]
         if len(arg) > len(self.typelist):
@@ -138,11 +164,20 @@ class MIXEDARRAY(object):
                 while len(paddedtypelist) < len(arg):
                     paddedtypelist.append(self.pad_type)
             else:
+                self.error_msg = "Argument of type " + str(type(arg)) + " with length " + \
+                    str(len(arg)) + "  not MIXEDARRAY " + str(self.typelist) + \
+                    " with padding disabled"
                 return False
         #pylint: disable=consider-using-enumerate
         for index in range(0, len(paddedtypelist)):
             #pylint: enable=consider-using-enumerate
-            if not _type_ok(arg[index], paddedtypelist[index]):
+            ok, msg = _type_ok(arg[index], paddedtypelist[index])
+            if not ok:
+                self.error_msg = "Argument of type " + str(type(arg)) + " with length " + \
+                    str(len(arg)) + " and element " + str(index) + " of type " + \
+                    str(type(arg[index])) + " not MIXEDARRAY " + str(self.typelist) + \
+                    " with padding set to " + str(self.pad_type) + " and pad type " + \
+                    str(self.pad_type) + " [" + msg + "]"
                 return False
         return True
 
@@ -152,7 +187,9 @@ class MIXEDDICT(object):
     distinct types per named element in the dictionary."""
     def __init__(self, typedict, ignore_extra=False, optionals=None):
         _check_typedict(typedict)
-        _check_arglist([ignore_extra, optionals], [bool, ARRAYOF(str)])
+        arglist_ok, msg = _check_arglist([ignore_extra, optionals], [bool, NONNABLE(ARRAYOF(str))])
+        if not arglist_ok:
+            raise AssertionError("MIXEDDICT constructor assert error: [" + msg + "]" )
         self.ignore_extra = ignore_extra
         self.typedict = typedict
         self.tdkeys = set(typedict.keys())
@@ -161,20 +198,34 @@ class MIXEDDICT(object):
         else:
             self.optionals = set(optionals)
         self.nonoptionals = self.tdkeys - self.optionals
+        self.error_msg = ""
     def __call__(self, arg):
+        self.error_msg = ""
         if not isinstance(arg, dict):
+            self.error_msg = "Argument of type " + str(type(arg)) + " not MIXEDDICT " + \
+                    str(self.typelist)
             return False
         akeys = set(arg.keys())
         extra = akeys - self.tdkeys
         if not self.ignore_extra:
             if extra:
+                self.error_msg = "Argument of type " + str(type(arg)) + " not MIXEDDICT " + \
+                    str(self.typedict) + " with only keys " + str(self.tdkeys) + \
+                    ", extra keys:" + str(extra)
                 return False
         missing = self.nonoptionals - akeys
         if missing:
+            self.error_msg = "Argument of type " + str(type(arg)) + " not MIXEDDICT " + \
+                    str(self.typedict) + " with mandatory keys " + str(self.nonoptionals) + \
+                    ", missing keys:", str(missing)
             return False
         checkthese = akeys - extra
         for key in checkthese:
-            if not _type_ok(arg[key], self.typedict[key]):
+            ok, msg = _type_ok(arg[key], self.typedict[key])
+            if not ok:
+                self.error_msg = "Argument of type " + str(type(arg)) + " and named element '" + \
+                        key + "' of type " + str(type(arg[key])) + " not MIXEDDICT " + \
+                        str(self.typedict) + " [" + msg + "]"
                 return False
         return True
 
@@ -185,20 +236,39 @@ class ARRAYOF(object):
     def __init__(self, etype, minsize=1, maxsize=-1):
         if isinstance(etype, type) and not callable(etype):
             raise AssertionError("ARRAYOF must be instantiated with a type or callable argument.")
-        _check_arglist([minsize, maxsize], [int, int])
+        arglist_ok, msg = _check_arglist([minsize, maxsize], [int, int])
+        if not arglist_ok:
+            raise AssertionError("ARRAYOF constructor assert error: [" + msg + "]" )
         self.etype = etype
         self.minsize = minsize
         self.maxsize = maxsize
+        self.error_msg = ""
     def __call__(self, arg):
+        self.error_msg = ""
         if not isinstance(arg, list):
+            self.error_msg = "Argument of type " + str(type(arg)) + " not ARRAYOF " + \
+                    str(self.etype)
             return False
         if len(arg) < self.minsize:
+            self.error_msg = "Argument of type " + str(type(arg)) + "with length " + \
+                    len(arg) + " to short for  ARRAYOF " + str(self.etype) + \
+                    " with minimum length of " + str(self.minsize)
             return False
         if self.maxsize != -1 and len(arg) > self.maxsize:
+            self.error_msg = "Argument of type " + str(type(arg)) + "with length " + \
+                    str(len(arg)) + " to long for  ARRAYOF " + str(self.etype) + \
+                    " with maximum length of " + str(self.maxsize)
             return False
+        ndx = 0;
         for argx in arg:
-            if not _type_ok(argx, self.etype):
+            ok, msg = _type_ok(argx, self.etype)
+            if not ok:
+                self.error_msg = "Argument of type " + str(type(arg)) + "with length " + \
+                    str(len(arg)) + " and element number " + str(ndx) + " of type " + str(type(argx)) + \
+                    " is not a valid ARRAYOF " + str(self.etype) + \
+                    "because of invalid element type. [" + msg + "]"
                 return False
+            ndx += 1
         return True
 
 def typeconstraints(typelist, rvtype=None):
@@ -216,30 +286,32 @@ def typeconstraints(typelist, rvtype=None):
                 maxarg = len(typelist)
             #Check each positional argument
             for index in range(0, maxarg):
-                if not _type_ok(args[index], typelist[index]):
+                ok, msg = _type_ok(args[index], typelist[index])
+                if not ok:
                     if isinstance(typelist[index], type):
                         errstr = name + ":Indexed argument " + str(index) + " has type " + \
                                 str(type(args[index])) + " but is expected to be of type " + \
-                                str(typelist[index])
+                                str(typelist[index]) + " [" + msg + "]"
                     else:
                         errstr = name + ":Indexed argument " + str(index) + \
                                 " did not pass constraint function checking by " + \
-                                str(typelist[index].__class__)
+                                str(typelist[index].__class__) + " [" + msg + "]"
                     raise AssertionError(errstr)
             #Check each named argument
             for key in kwargs.keys():
                 if not key in kwtypelist:
                     errstr = name + ":Unexpected named argument '" + key + "'"
                     raise AssertionError(errstr)
-                if not _type_ok(kwargs[key], kwtypelist[key]):
+                ok, msg = _type_ok(kwargs[key], kwtypelist[key])
+                if not ok:
                     if isinstance(kwtypelist[key], type):
                         errstr = name + ":Named argument '" + key  + "' has type " + \
                                 str(type(kwargs[key])) + " but is expected to be of type " + \
-                                str(kwtypelist[key])
+                                str(kwtypelist[key]) + " [" + msg + "]"
                     else:
                         errstr = name + ":Named argument '" + key  + \
                                 "'  did not pass constraint function checking by " + \
-                                kwtypelist[key].__name__
+                                kwtypelist[key].__name__  + " [" + msg + "]"
                     raise AssertionError(errstr)
         def _type_constraint_assert_factory(original_function):
             #Create a key value version of the constraint type list using the argument spec
