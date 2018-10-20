@@ -118,6 +118,8 @@ class NONNABLE(object):
     def __init__(self, ntype):
         if isinstance(ntype, type) and not callable(ntype):
             raise AssertionError("Nonable must be instantiated with a type or callable argument.")
+        if not isinstance(ntype, type) and callable(ntype):
+            _check_callable(ntype)
         self.nonnable = ntype
         self.error_msg = ""
     def __call__(self, arg):
@@ -234,8 +236,11 @@ class ARRAYOF(object):
     """Helper type-constraint callable for allowing an list type argument with a set type
     for each of the elements in the list."""
     def __init__(self, etype, minsize=1, maxsize=-1):
+        arglist_ok, msg = _check_arglist([etype, minsize, maxsize], [type, int, int])
         if isinstance(etype, type) and not callable(etype):
             raise AssertionError("ARRAYOF must be instantiated with a type or callable argument.")
+        if not isinstance(etype, type) and callable(etype):
+            _check_callable(etype)
         arglist_ok, msg = _check_arglist([minsize, maxsize], [int, int])
         if not arglist_ok:
             raise AssertionError("ARRAYOF constructor assert error: [" + msg + "]" )
@@ -269,6 +274,41 @@ class ARRAYOF(object):
                     "because of invalid element type. [" + msg + "]"
                 return False
             ndx += 1
+        return True
+
+class DICTOF(object):
+    """Helper type-constraint callable for allowing a dict type argument with a set type
+    for each of the elements in the dictionary."""
+    def __init__(self,value_type=str,key_type=str):
+        if isinstance(key_type, type) and not callable(key_type):
+            raise AssertionError("DICTOF must be instantiated with types or callable arguments.")
+        if not isinstance(key_type, type) and callable(key_type):
+            _check_callable(key_type)
+        if isinstance(value_type, type) and not callable(value_type):
+            raise AssertionError("DICTOF must be instantiated with types or callable arguments.")
+        if not isinstance(value_type, type) and callable(value_type):
+            _check_callable(value_type)
+        self.key_type = key_type
+        self.value_type = value_type
+        self.error_msg = ""
+    def __call__(self,typedmap):
+        self.error_msg = ""
+        for key in typedmap.keys():
+            ok, msg = _type_ok(key, self.key_type)
+            if ok:
+                val = typedmap[key]
+                ok2, msg2 = _type_ok(val, self.value_type)
+                if not ok2:
+                    self.error_msg = "Dictionary element with key '" + str(key) + \
+                            "' and type " + str(type(val)) + "in DICTOFF with value_type " + \
+                            str(self.value_type) + " does not have a valid value type. [" + \
+                            msg2 + "]"
+                    return False
+            else:
+                self.error_msg = "Dictionary element in in DICTOFF with key_type of " + \
+                        str(self.key_type) + " contains key of type " + str(type(key)) + "[" + \
+                        msg + "]"
+                return False
         return True
 
 def typeconstraints(typelist, rvtype=None):

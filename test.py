@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typeconstraints import typeconstraints,ARRAYOF,NONNABLE,ANYOF,MIXEDARRAY,MIXEDDICT
+from typeconstraints import typeconstraints,ARRAYOF,NONNABLE,ANYOF,MIXEDARRAY,MIXEDDICT,DICTOF
 import unittest
 
 class typeconstraintsTest(unittest.TestCase):
@@ -46,6 +46,21 @@ class typeconstraintsTest(unittest.TestCase):
         def foo07(arr1,st):
             return True
         self.assertRaises(AssertionError, foo07, 199, "hi")
+    def testdictof01(self):
+        @typeconstraints([DICTOF(int)],[bool])
+        def foo0a(dct):
+            return True
+        self.assertTrue(foo0a({"bar": 17,"baz": 31}))
+    def testdictof02(self):
+        @typeconstraints([DICTOF(int)],[bool])
+        def foo0b(dct):
+            return True
+        self.assertRaises(AssertionError, foo0b, {"bar": 17,"baz": "hi"})
+    def testdictof03(self):
+        @typeconstraints([DICTOF(int)],[bool])
+        def foo0b(dct):
+            return True
+        self.assertRaises(AssertionError, foo0b, {"bar": 17,"baz": 31, False: 188})
     # Possitive test with argument that is allowed to be specified as None. First with a regular value.
     def testnonnable01(self):
         @typeconstraints([int,NONNABLE(str)],[bool])

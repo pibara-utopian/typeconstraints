@@ -29,13 +29,19 @@ simple_function(42,"hi there",[1,1,2,3,5,8,13,21])
 The typeconstraints comes with a number of predefined convenience callables. 
 The following are tested to be currently functional. 
 
-* NONNABLE(int) : Attribute should either be an int or the value None
-* ANYOF(int,float) : Attribute should either be an int or a float
-* ARRAYOF(str): Attribute should be a list and each element in the list should be a string.
+* NONNABLE(tc) : Attribute should either be either ve a valid value of type tc or None
+* ANYOF(tc1,tc2) : Attribute should either be of type tc1 or of type tc2
+* ARRAYOF(tc): Attribute should be a list and each element in the list should be of type tc.
+* DICTOF(tcval,tckey=str): Attribute should be a dict. The keys should all be of type tckey
+                           and the values of type tcval
+* MIXEDARRAY(tclist,max\_size=-1,pad\_type=NoneType):
+    Attribute should be an array filled with elements of the consecutive types defined in tclist.
+    Optionally the list may be padded with element of type pad_type up to a size of max_size. 
+* MIXEDDIX(tcdict,ignore\_extra=False,optionals=None):
+    Attribute should be a dict with keys that match those in tcdict and values of the type defined
+    for those keys in tcdict. Keys mentioned in optionals may be left out, but if they are there\
+    their value type should match the definition. Keys not mentioned in tcdict can optionally be ignored.
 
-The following callables arent fully functional yet:
 
-* MIXEDARRAY([str,int,bool],max\_size=20,pad\_ok=True,pad\_type=float)
-* MIXEDDIX({"foo": str,"bar": float},ignore\_extra=True,optionals=["bar"])
 
 
