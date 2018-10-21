@@ -311,6 +311,36 @@ class DICTOF(object):
                 return False
         return True
 
+class DUCK(object):
+    def __init__(self,original_duck):
+        self.methods = set()
+        self.argcount = dict()
+        self.error_msg = ""
+        for candidate in set(dir(original_duck)) - set(dir(object)):
+            method = getattr(original_duck,candidate)
+            if callable(method):
+                self.methods.add(candidate)
+                self.argcount[candidate] = len(list(inspect.signature(method).parameters.keys()))
+    def __call__(self,other_duck):
+        self.error_msg = ""
+        methods2 = set()
+        for candidate in set(dir(other_duck)) - set(dir(object)):
+            if callable(getattr(other_duck,candidate)):
+                method = getattr(other_duck,candidate)
+                methods2.add(candidate)
+        missing_methods = self.methods - methods2
+        if missing_methods:
+            self.error_msg = "Duck-typed argument object is missing at least one method:" + str(list(missing_methods))
+            return False
+        for methodname in self.methods:
+            method = getattr(other_duck,methodname)
+            argcount = len(list(inspect.signature(method).parameters.keys()))
+            if argcount != self.argcount[methodname] - 1:
+                self.error_msg = "Duck-typed argument object has a different argument count for " + methodname + " method." + str(argcount) + "!=" + str(self.argcount[methodname])
+                return False
+        return True
+
+
 def typeconstraints(typelist, rvtype=None):
     """The typeconstraint decorator allows a function or method to be augmented with strict
     (run-time) type asserts for all passed function arguments and returned return values."""

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typeconstraints import typeconstraints,ARRAYOF,NONNABLE,ANYOF,MIXEDARRAY,MIXEDDICT,DICTOF
+from typeconstraints import typeconstraints,ARRAYOF,NONNABLE,ANYOF,MIXEDARRAY,MIXEDDICT,DICTOF,DUCK
 import unittest
 
 class typeconstraintsTest(unittest.TestCase):
@@ -222,5 +222,70 @@ class typeconstraintsTest(unittest.TestCase):
                     ]
                 ]
         )
+    def testduck01(self):
+        class Foo(object):
+            def method1(self,arg,arg2,arg3):
+                return True
+            def method2(self,arg,arg2,arg3):
+                return False
+        class Bar(object):
+            def method1(self,arg,arg2,arg3):
+                return True
+            def method2(self,arg,arg2,arg3):
+                return False
+            def method3(self):
+                return 17
+        @typeconstraints([DUCK(Foo)],[bool])
+        def foo26(duck):
+            return True
+        bar = Bar()
+        self.assertTrue(foo26(bar))
+    def testduck02(self):
+        class Foo(object):
+            def method1(self,arg,arg2,arg3):
+                return True
+            def method2(self,arg,arg2,arg3):
+                return False
+            def method3(self):
+                return 17
+        class Bar(object):
+            def method1(self,arg,arg2,arg3):
+                return True
+            def method2(self,arg,arg2,arg3):
+                return False
+        @typeconstraints([DUCK(Foo)],[bool])
+        def foo27(duck):
+            return True
+        bar = Bar()
+        self.assertRaises(AssertionError, foo27, bar)
+    def testduck03(self):
+        class Foo(object):
+            def method1(self,arg,arg2,arg3):
+                return True
+            def method2(self,arg,arg2,arg3):
+                return False
+        class Bar(object):
+            def method1(self,arg,arg2,arg3):
+                return True
+            def method2(self,arg,arg2):
+                return False
+            def method3(self):
+                return 17
+        @typeconstraints([DUCK(Foo)],[bool])
+        def foo27(duck):
+            return True
+        bar = Bar()
+        self.assertRaises(AssertionError, foo27, bar)
+    def testduck04(self):
+        class Foo(object):
+            def method1(self,arg,arg2,arg3):
+                return True
+            def method2(self,arg,arg2,arg3):
+                return False
+        @typeconstraints([DUCK(Foo)],[bool])
+        def foo27(duck):
+            return True
+        self.assertRaises(AssertionError, foo27, 17)
+
 if __name__ == "__main__":
     unittest.main()
